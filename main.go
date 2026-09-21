@@ -105,6 +105,12 @@ func main() {
 	if ExecutionError := PrepareSourceRepository(InstallerConfigurationValue, OperationLogValue); ExecutionError != nil {
 		FailOperation(OperationLogValue, CheckResultsValue, ExecutionError)
 	}
+	if InstallerConfigurationValue.InstallChanges {
+		if FixError := ApplyWindowsModernCaptureTestFix(InstallerConfigurationValue, OperationLogValue); FixError != nil {
+			FailOperation(OperationLogValue, CheckResultsValue, FixError)
+		}
+		RecordPassedCheck(&CheckResultsValue)
+	}
 	if ExecutionError := BuildXerahS(InstallerConfigurationValue, OperationLogValue); ExecutionError != nil {
 		FailOperation(OperationLogValue, CheckResultsValue, ExecutionError)
 	}
@@ -119,7 +125,7 @@ func main() {
 func NewCheckResults(InstallerConfigurationValue InstallerConfiguration) CheckResults {
 	TotalChecks := 2
 	if InstallerConfigurationValue.InstallChanges {
-		TotalChecks = TotalChecks + 2
+		TotalChecks = TotalChecks + 3
 	}
 	return CheckResults{TotalChecks: TotalChecks}
 }
