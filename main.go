@@ -26,6 +26,7 @@ type InstallerConfiguration struct {
 	DestinationRepositoryPath string
 	OperationLogDirectoryPath string
 	InstallChanges            bool
+	UseDevelopInstallation    bool
 	UpdateExistingSource      bool
 	BuildLinuxPackages        bool
 }
@@ -117,9 +118,13 @@ func ParseInstallerConfiguration() (InstallerConfiguration, error) {
 	DestinationRepositoryPath := flag.String("destination", DefaultDestinationRepositoryPath, "destination directory for the XerahS repository")
 	OperationLogDirectoryPath := flag.String("log-directory", DefaultOperationLogDirectoryPath, "directory for operation logs")
 	InstallChanges := flag.Bool("install", false, "install prerequisites, clone XerahS, and build it; without this flag the program only prints the plan")
+	UseDevelopInstallation := flag.Bool("dev", false, "select the XerahS develop branch installation")
 	UpdateExistingSource := flag.Bool("update-source", false, "fast-forward an existing clean clone to origin/develop")
 	BuildLinuxPackages := flag.Bool("build-packages", false, "build Linux packages under dist/ instead of only compiling the desktop solution")
 	flag.Parse()
+	if !*UseDevelopInstallation {
+		return InstallerConfiguration{}, fmt.Errorf("select an installation target with --dev")
+	}
 
 	AbsoluteDestinationRepositoryPath, DestinationPathError := filepath.Abs(*DestinationRepositoryPath)
 	if DestinationPathError != nil {
@@ -133,6 +138,7 @@ func ParseInstallerConfiguration() (InstallerConfiguration, error) {
 		DestinationRepositoryPath: AbsoluteDestinationRepositoryPath,
 		OperationLogDirectoryPath: AbsoluteOperationLogDirectoryPath,
 		InstallChanges:            *InstallChanges,
+		UseDevelopInstallation:    *UseDevelopInstallation,
 		UpdateExistingSource:      *UpdateExistingSource,
 		BuildLinuxPackages:        *BuildLinuxPackages,
 	}, nil
