@@ -20,6 +20,10 @@ const (
 )
 
 func RunXerahSDevelopInstallation(InstallerConfigurationValue InstallerConfiguration, OperationLogValue OperationLog, CheckResultsValue *CheckResults) error {
+	if DestinationValidationError := ValidateDestinationRepositoryPath(InstallerConfigurationValue); DestinationValidationError != nil {
+		return DestinationValidationError
+	}
+	RecordPassedCheck(CheckResultsValue)
 	if PrerequisiteError := InstallXerahSDevelopPrerequisites(InstallerConfigurationValue, OperationLogValue); PrerequisiteError != nil {
 		return PrerequisiteError
 	}
@@ -52,7 +56,7 @@ func PrintXerahSDevelopDryRunValidationSuccess(InstallerConfigurationValue Insta
 	fmt.Println(TerminalColorGreen + CheckSummary + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "Ubuntu 24.04 and the destination path were validated." + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "It is safe to execute the validated installation plan with:" + TerminalColorReset)
-	fmt.Println(TerminalColorGreen + "  ./xerahs-ubuntu-installer --install" + TerminalColorReset)
+	fmt.Println(TerminalColorGreen + "  ./xerahs-ubuntu-installer --install --dev" + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "This will install and build " + XerahSDevelopRepositoryURL + " (branch " + XerahSDevelopBranch + ")." + TerminalColorReset)
 }
 

@@ -21,29 +21,6 @@ type DebianPackageMetadata struct {
 	Architecture   string
 }
 
-func RunSelectedInstallation(InstallerConfigurationValue InstallerConfiguration, OperationLogValue OperationLog, CheckResultsValue *CheckResults) error {
-	if InstallerConfigurationValue.UseDevelopInstallation {
-		return RunXerahSDevelopInstallation(InstallerConfigurationValue, OperationLogValue, CheckResultsValue)
-	}
-	return RunXerahSReleaseDebInstallation(InstallerConfigurationValue, OperationLogValue, CheckResultsValue)
-}
-
-func PrintSelectedInstallationTarget(InstallerConfigurationValue InstallerConfiguration) {
-	if InstallerConfigurationValue.UseDevelopInstallation {
-		PrintXerahSDevelopInstallationTarget(InstallerConfigurationValue)
-		return
-	}
-	PrintXerahSReleaseDebInstallationTarget()
-}
-
-func PrintSelectedDryRunValidationSuccess(InstallerConfigurationValue InstallerConfiguration, CheckResultsValue CheckResults) {
-	if InstallerConfigurationValue.UseDevelopInstallation {
-		PrintXerahSDevelopDryRunValidationSuccess(InstallerConfigurationValue, CheckResultsValue)
-		return
-	}
-	PrintXerahSReleaseDebDryRunValidationSuccess(CheckResultsValue)
-}
-
 func RunXerahSReleaseDebInstallation(InstallerConfigurationValue InstallerConfiguration, OperationLogValue OperationLog, CheckResultsValue *CheckResults) error {
 	SourceDebPath := filepath.Join(os.TempDir(), "xerahs-"+XerahSReleaseVersion+"-"+OperationLogValue.OperationID+".deb")
 	DownloadOperation := CommandOperation{Name: "Download XerahS release Debian package", ExecutablePath: "curl", Arguments: []string{"--fail", "--show-error", "--location", "--progress-bar", "--output", SourceDebPath, XerahSReleasePackageURL}}
