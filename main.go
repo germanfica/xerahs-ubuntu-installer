@@ -23,6 +23,9 @@ const (
 	XerahSDevelopBranch      = "develop"
 	MicrosoftPackagesDEBURL  = "https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb"
 	MicrosoftPackagesDEBName = "packages-microsoft-prod.deb"
+	TerminalColorGreen        = "\033[1;32m"
+	TerminalColorRed          = "\033[1;31m"
+	TerminalColorReset        = "\033[0m"
 )
 
 type InstallerConfiguration struct {
@@ -65,6 +68,7 @@ func main() {
 	} else {
 		LogMessage(OperationLogValue, "Mode: dry run; no commands will be executed")
 	}
+	PrintInstallationTarget(InstallerConfigurationValue)
 
 	if ValidationError := ValidateUbuntu2404Host(); ValidationError != nil {
 		FailOperation(OperationLogValue, ValidationError)
@@ -95,6 +99,9 @@ func main() {
 
 	LogMessage(OperationLogValue, "Completed successfully")
 	fmt.Println("Completed successfully. Operation log:", OperationLogValue.LogPath)
+	if !InstallerConfigurationValue.ApplyChanges {
+		PrintDryRunValidationSuccess(InstallerConfigurationValue)
+	}
 }
 
 func ParseInstallerConfiguration() (InstallerConfiguration, error) {
@@ -207,6 +214,20 @@ func ValidateSudoAccess() error {
 		return fmt.Errorf("validate sudo access: %w", SudoValidationError)
 	}
 	return nil
+}
+
+func PrintInstallationTarget(InstallerConfigurationValue InstallerConfiguration) {
+	fmt.Println("XerahS repository:", XerahSRepositoryURL)
+	fmt.Println("XerahS branch:", XerahSDevelopBranch)
+	fmt.Println("Destination path:", InstallerConfigurationValue.DestinationRepositoryPath)
+}
+
+func PrintDryRunValidationSuccess(InstallerConfigurationValue InstallerConfiguration) {
+	fmt.Println(TerminalColorGreen + "CHECKS PASSED" + TerminalColorReset)
+	fmt.Println(TerminalColorGreen + "Ubuntu 24.04 and the destination path were validated." + TerminalColorReset)
+	fmt.Println(TerminalColorGreen + "It is safe to execute the validated installation plan with:" + TerminalColorReset)
+	fmt.Println(TerminalColorGreen + "  ./xerahs-ubuntu-installer --apply" + TerminalColorReset)
+	fmt.Println(TerminalColorGreen + "This will install and build " + XerahSRepositoryURL + " (branch " + XerahSDevelopBranch + ")." + TerminalColorReset)
 }
 
 func InstallBuildPrerequisites(InstallerConfigurationValue InstallerConfiguration, OperationLogValue OperationLog) error {
@@ -347,8 +368,9 @@ func LogMessage(OperationLogValue OperationLog, Message string) {
 
 func FailOperation(OperationLogValue OperationLog, OperationError error) {
 	LogMessage(OperationLogValue, "Failed: "+OperationError.Error())
-	fmt.Fprintln(os.Stderr, "Failed:", OperationError)
+	fmt.Fprintln(os.Stderr, TerminalColorRed+"CHECK FAILED"+TerminalColorReset)
+	fmt.Fprintln(os.Stderr, TerminalColorRed+"The installation plan was not approved: "+OperationError.Error()+TerminalColorReset)
+	fmt.Fprintln(os.Stderr, TerminalColorRed+"Do not run --apply until this check is resolved."+TerminalColorReset)
 	fmt.Fprintln(os.Stderr, "Operation log:", OperationLogValue.LogPath)
 	os.Exit(1)
 }
-
