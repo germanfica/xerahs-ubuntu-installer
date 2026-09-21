@@ -23,6 +23,8 @@ const (
 	XerahSDevelopBranch      = "develop"
 	MicrosoftPackagesDEBURL  = "https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb"
 	MicrosoftPackagesDEBName = "packages-microsoft-prod.deb"
+	NodeSourceSetupURL       = "https://deb.nodesource.com/setup_22.x"
+	NodeSourceSetupFileName  = "nodesource_setup_22.sh"
 	TerminalColorGreen        = "\033[1;32m"
 	TerminalColorRed          = "\033[1;31m"
 	TerminalColorReset        = "\033[0m"
@@ -255,13 +257,17 @@ func PrintDryRunValidationSuccess(InstallerConfigurationValue InstallerConfigura
 
 func InstallBuildPrerequisites(InstallerConfigurationValue InstallerConfiguration, OperationLogValue OperationLog) error {
 	PackageDownloadPath := filepath.Join(os.TempDir(), MicrosoftPackagesDEBName)
+	NodeSourceSetupPath := filepath.Join(os.TempDir(), NodeSourceSetupFileName)
 	Operations := []CommandOperation{
 		{Name: "Update Ubuntu package metadata", ExecutablePath: "sudo", Arguments: []string{"apt-get", "update"}},
 		{Name: "Install base tools", ExecutablePath: "sudo", Arguments: []string{"apt-get", "install", "--yes", "ca-certificates", "curl", "git", "gnupg", "wget", "dpkg-dev", "build-essential", "libfontconfig1", "libfreetype6", "libgtk-3-0", "libnss3", "libx11-6", "libxcomposite1", "libxcursor1", "libxdamage1", "libxext6", "libxi6", "libxrandr2", "libxrender1", "libxtst6", "wl-clipboard", "xclip"}},
 		{Name: "Download Microsoft package repository configuration", ExecutablePath: "wget", Arguments: []string{"--output-document", PackageDownloadPath, MicrosoftPackagesDEBURL}},
 		{Name: "Install Microsoft package repository configuration", ExecutablePath: "sudo", Arguments: []string{"dpkg", "--install", PackageDownloadPath}},
 		{Name: "Update package metadata after adding Microsoft repository", ExecutablePath: "sudo", Arguments: []string{"apt-get", "update"}},
-		{Name: "Install .NET 10 SDK and Node.js", ExecutablePath: "sudo", Arguments: []string{"apt-get", "install", "--yes", "dotnet-sdk-10.0", "nodejs", "npm"}},
+		{Name: "Install .NET 10 SDK", ExecutablePath: "sudo", Arguments: []string{"apt-get", "install", "--yes", "dotnet-sdk-10.0"}},
+		{Name: "Download NodeSource 22 repository setup", ExecutablePath: "curl", Arguments: []string{"--fail", "--silent", "--show-error", "--location", "--output", NodeSourceSetupPath, NodeSourceSetupURL}},
+		{Name: "Configure NodeSource 22 package repository", ExecutablePath: "sudo", Arguments: []string{"bash", NodeSourceSetupPath}},
+		{Name: "Install Node.js 22", ExecutablePath: "sudo", Arguments: []string{"apt-get", "install", "--yes", "nodejs"}},
 	}
 	return ExecuteCommandOperations(InstallerConfigurationValue, OperationLogValue, Operations)
 }
