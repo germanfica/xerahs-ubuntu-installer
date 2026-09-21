@@ -49,6 +49,11 @@ type CommandOperation struct {
 	WorkingDirectory string
 }
 
+type CheckResults struct {
+	PassedChecks int
+	TotalChecks  int
+}
+
 func main() {
 	InstallerConfigurationValue, ConfigurationError := ParseInstallerConfiguration()
 	if ConfigurationError != nil {
@@ -69,39 +74,56 @@ func main() {
 		LogMessage(OperationLogValue, "Mode: dry run; no commands will be executed")
 	}
 	PrintInstallationTarget(InstallerConfigurationValue)
+	CheckResultsValue := NewCheckResults(InstallerConfigurationValue)
 
 	if ValidationError := ValidateUbuntu2404Host(); ValidationError != nil {
-		FailOperation(OperationLogValue, ValidationError)
+		FailOperation(OperationLogValue, CheckResultsValue, ValidationError)
 	}
+	RecordPassedCheck(&CheckResultsValue)
 	if ValidationError := ValidateDestinationRepositoryPath(InstallerConfigurationValue); ValidationError != nil {
-		FailOperation(OperationLogValue, ValidationError)
+		FailOperation(OperationLogValue, CheckResultsValue, ValidationError)
 	}
+	RecordPassedCheck(&CheckResultsValue)
 	if InstallerConfigurationValue.ApplyChanges {
 		if ValidationError := ValidateSudoAccess(); ValidationError != nil {
-			FailOperation(OperationLogValue, ValidationError)
+			FailOperation(OperationLogValue, CheckResultsValue, ValidationError)
 		}
+		RecordPassedCheck(&CheckResultsValue)
 	}
 
 	if ExecutionError := InstallBuildPrerequisites(InstallerConfigurationValue, OperationLogValue); ExecutionError != nil {
-		FailOperation(OperationLogValue, ExecutionError)
+		FailOperation(OperationLogValue, CheckResultsValue, ExecutionError)
 	}
 	if InstallerConfigurationValue.ApplyChanges {
 		if ValidationError := ValidateInstalledToolVersions(); ValidationError != nil {
-			FailOperation(OperationLogValue, ValidationError)
+			FailOperation(OperationLogValue, CheckResultsValue, ValidationError)
 		}
+		RecordPassedCheck(&CheckResultsValue)
 	}
 	if ExecutionError := PrepareSourceRepository(InstallerConfigurationValue, OperationLogValue); ExecutionError != nil {
-		FailOperation(OperationLogValue, ExecutionError)
+		FailOperation(OperationLogValue, CheckResultsValue, ExecutionError)
 	}
 	if ExecutionError := BuildXerahS(InstallerConfigurationValue, OperationLogValue); ExecutionError != nil {
-		FailOperation(OperationLogValue, ExecutionError)
+		FailOperation(OperationLogValue, CheckResultsValue, ExecutionError)
 	}
 
 	LogMessage(OperationLogValue, "Completed successfully")
 	fmt.Println("Completed successfully. Operation log:", OperationLogValue.LogPath)
 	if !InstallerConfigurationValue.ApplyChanges {
-		PrintDryRunValidationSuccess(InstallerConfigurationValue)
+		PrintDryRunValidationSuccess(InstallerConfigurationValue, CheckResultsValue)
 	}
+}
+
+func NewCheckResults(InstallerConfigurationValue InstallerConfiguration) CheckResults {
+	TotalChecks := 2
+	if InstallerConfigurationValue.ApplyChanges {
+		TotalChecks = TotalChecks + 2
+	}
+	return CheckResults{TotalChecks: TotalChecks}
+}
+
+func RecordPassedCheck(CheckResultsValue *CheckResults) {
+	CheckResultsValue.PassedChecks++
 }
 
 func ParseInstallerConfiguration() (InstallerConfiguration, error) {
@@ -222,8 +244,9 @@ func PrintInstallationTarget(InstallerConfigurationValue InstallerConfiguration)
 	fmt.Println("Destination path:", InstallerConfigurationValue.DestinationRepositoryPath)
 }
 
-func PrintDryRunValidationSuccess(InstallerConfigurationValue InstallerConfiguration) {
-	fmt.Println(TerminalColorGreen + "CHECKS PASSED" + TerminalColorReset)
+func PrintDryRunValidationSuccess(InstallerConfigurationValue InstallerConfiguration, CheckResultsValue CheckResults) {
+	CheckSummary := fmt.Sprintf("Checks passed: %d/%d", CheckResultsValue.PassedChecks, CheckResultsValue.TotalChecks)
+	fmt.Println(TerminalColorGreen + CheckSummary + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "Ubuntu 24.04 and the destination path were validated." + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "It is safe to execute the validated installation plan with:" + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "  ./xerahs-ubuntu-installer --apply" + TerminalColorReset)
@@ -366,8 +389,10 @@ func LogMessage(OperationLogValue OperationLog, Message string) {
 	_, _ = fmt.Fprintln(OperationLogValue.LogFile, LogLine)
 }
 
-func FailOperation(OperationLogValue OperationLog, OperationError error) {
+func FailOperation(OperationLogValue OperationLog, CheckResultsValue CheckResults, OperationError error) {
 	LogMessage(OperationLogValue, "Failed: "+OperationError.Error())
+	CheckSummary := fmt.Sprintf("Checks passed: %d/%d", CheckResultsValue.PassedChecks, CheckResultsValue.TotalChecks)
+	fmt.Fprintln(os.Stderr, TerminalColorRed+CheckSummary+TerminalColorReset)
 	fmt.Fprintln(os.Stderr, TerminalColorRed+"CHECK FAILED"+TerminalColorReset)
 	fmt.Fprintln(os.Stderr, TerminalColorRed+"The installation plan was not approved: "+OperationError.Error()+TerminalColorReset)
 	fmt.Fprintln(os.Stderr, TerminalColorRed+"Do not run --apply until this check is resolved."+TerminalColorReset)
