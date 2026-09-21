@@ -46,7 +46,7 @@ func PrintSelectedDryRunValidationSuccess(InstallerConfigurationValue InstallerC
 
 func RunXerahSReleaseDebInstallation(InstallerConfigurationValue InstallerConfiguration, OperationLogValue OperationLog, CheckResultsValue *CheckResults) error {
 	SourceDebPath := filepath.Join(os.TempDir(), "xerahs-"+XerahSReleaseVersion+"-"+OperationLogValue.OperationID+".deb")
-	DownloadOperation := CommandOperation{Name: "Download XerahS release Debian package", ExecutablePath: "curl", Arguments: []string{"--fail", "--silent", "--show-error", "--location", "--output", SourceDebPath, XerahSReleasePackageURL}}
+	DownloadOperation := CommandOperation{Name: "Download XerahS release Debian package", ExecutablePath: "curl", Arguments: []string{"--fail", "--show-error", "--location", "--progress-bar", "--output", SourceDebPath, XerahSReleasePackageURL}}
 	if DownloadError := ExecuteCommandOperations(InstallerConfigurationValue, OperationLogValue, []CommandOperation{DownloadOperation}); DownloadError != nil {
 		return DownloadError
 	}
@@ -92,7 +92,7 @@ func ValidateXerahSReleaseDebianPackage(SourceDebPath string) (DebianPackageMeta
 		return DebianPackageMetadata{}, fmt.Errorf("downloaded Debian package %q is empty", SourceDebPath)
 	}
 
-	DebianPackageMetadataOutput, DebianPackageMetadataError := exec.Command("dpkg-deb", "--showformat=${Package}\n${Version}\n${Architecture}\n", "--show", SourceDebPath).Output()
+	DebianPackageMetadataOutput, DebianPackageMetadataError := exec.Command("dpkg-deb", "--showformat=${Package}\\n${Version}\\n${Architecture}\\n", "--show", SourceDebPath).Output()
 	if DebianPackageMetadataError != nil {
 		return DebianPackageMetadata{}, fmt.Errorf("read Debian package metadata from %q: %w", SourceDebPath, DebianPackageMetadataError)
 	}
