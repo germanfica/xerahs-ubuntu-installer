@@ -1,7 +1,7 @@
 // xerahs-ubuntu-installer installs the build prerequisites for XerahS and
 // builds the develop branch on Ubuntu 24.04.
 //
-// The program performs a dry run by default. Pass --apply to execute the
+// The program performs a dry run by default. Pass --install to execute the
 // validated commands.
 package main
 
@@ -31,7 +31,7 @@ const (
 type InstallerConfiguration struct {
 	DestinationRepositoryPath string
 	OperationLogDirectoryPath string
-	ApplyChanges              bool
+	InstallChanges            bool
 	UpdateExistingSource      bool
 	BuildLinuxPackages        bool
 }
@@ -68,8 +68,8 @@ func main() {
 	}
 	defer OperationLogValue.LogFile.Close()
 
-	if InstallerConfigurationValue.ApplyChanges {
-		LogMessage(OperationLogValue, "Mode: apply changes")
+	if InstallerConfigurationValue.InstallChanges {
+		LogMessage(OperationLogValue, "Mode: install changes")
 	} else {
 		LogMessage(OperationLogValue, "Mode: dry run; no commands will be executed")
 	}
@@ -84,7 +84,7 @@ func main() {
 		FailOperation(OperationLogValue, CheckResultsValue, ValidationError)
 	}
 	RecordPassedCheck(&CheckResultsValue)
-	if InstallerConfigurationValue.ApplyChanges {
+	if InstallerConfigurationValue.InstallChanges {
 		if ValidationError := ValidateSudoAccess(); ValidationError != nil {
 			FailOperation(OperationLogValue, CheckResultsValue, ValidationError)
 		}
@@ -94,7 +94,7 @@ func main() {
 	if ExecutionError := InstallBuildPrerequisites(InstallerConfigurationValue, OperationLogValue); ExecutionError != nil {
 		FailOperation(OperationLogValue, CheckResultsValue, ExecutionError)
 	}
-	if InstallerConfigurationValue.ApplyChanges {
+	if InstallerConfigurationValue.InstallChanges {
 		if ValidationError := ValidateInstalledToolVersions(); ValidationError != nil {
 			FailOperation(OperationLogValue, CheckResultsValue, ValidationError)
 		}
@@ -109,14 +109,14 @@ func main() {
 
 	LogMessage(OperationLogValue, "Completed successfully")
 	fmt.Println("Completed successfully. Operation log:", OperationLogValue.LogPath)
-	if !InstallerConfigurationValue.ApplyChanges {
+	if !InstallerConfigurationValue.InstallChanges {
 		PrintDryRunValidationSuccess(InstallerConfigurationValue, CheckResultsValue)
 	}
 }
 
 func NewCheckResults(InstallerConfigurationValue InstallerConfiguration) CheckResults {
 	TotalChecks := 2
-	if InstallerConfigurationValue.ApplyChanges {
+	if InstallerConfigurationValue.InstallChanges {
 		TotalChecks = TotalChecks + 2
 	}
 	return CheckResults{TotalChecks: TotalChecks}
@@ -136,7 +136,7 @@ func ParseInstallerConfiguration() (InstallerConfiguration, error) {
 	DefaultOperationLogDirectoryPath := filepath.Join(CurrentWorkingDirectoryPath, "xerahs-installer-logs")
 	DestinationRepositoryPath := flag.String("destination", DefaultDestinationRepositoryPath, "destination directory for the XerahS repository")
 	OperationLogDirectoryPath := flag.String("log-directory", DefaultOperationLogDirectoryPath, "directory for operation logs")
-	ApplyChanges := flag.Bool("apply", false, "execute changes; without this flag the program only prints the plan")
+	InstallChanges := flag.Bool("install", false, "install prerequisites, clone XerahS, and build it; without this flag the program only prints the plan")
 	UpdateExistingSource := flag.Bool("update-source", false, "fast-forward an existing clean clone to origin/develop")
 	BuildLinuxPackages := flag.Bool("build-packages", false, "build Linux packages under dist/ instead of only compiling the desktop solution")
 	flag.Parse()
@@ -153,7 +153,7 @@ func ParseInstallerConfiguration() (InstallerConfiguration, error) {
 	return InstallerConfiguration{
 		DestinationRepositoryPath: AbsoluteDestinationRepositoryPath,
 		OperationLogDirectoryPath: AbsoluteOperationLogDirectoryPath,
-		ApplyChanges:              *ApplyChanges,
+		InstallChanges:            *InstallChanges,
 		UpdateExistingSource:      *UpdateExistingSource,
 		BuildLinuxPackages:        *BuildLinuxPackages,
 	}, nil
@@ -249,7 +249,7 @@ func PrintDryRunValidationSuccess(InstallerConfigurationValue InstallerConfigura
 	fmt.Println(TerminalColorGreen + CheckSummary + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "Ubuntu 24.04 and the destination path were validated." + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "It is safe to execute the validated installation plan with:" + TerminalColorReset)
-	fmt.Println(TerminalColorGreen + "  ./xerahs-ubuntu-installer --apply" + TerminalColorReset)
+	fmt.Println(TerminalColorGreen + "  ./xerahs-ubuntu-installer --install" + TerminalColorReset)
 	fmt.Println(TerminalColorGreen + "This will install and build " + XerahSRepositoryURL + " (branch " + XerahSDevelopBranch + ")." + TerminalColorReset)
 }
 
@@ -309,7 +309,7 @@ func PrepareSourceRepository(InstallerConfigurationValue InstallerConfiguration,
 		LogMessage(OperationLogValue, "Using existing source repository without updating it")
 		return nil
 	}
-	if InstallerConfigurationValue.ApplyChanges {
+	if InstallerConfigurationValue.InstallChanges {
 		if CleanWorkingTreeError := ValidateCleanWorkingTree(InstallerConfigurationValue.DestinationRepositoryPath); CleanWorkingTreeError != nil {
 			return CleanWorkingTreeError
 		}
@@ -356,7 +356,7 @@ func ExecuteCommandOperations(InstallerConfigurationValue InstallerConfiguration
 	for _, CurrentOperation := range Operations {
 		LogMessage(OperationLogValue, "Operation: "+CurrentOperation.Name)
 		LogMessage(OperationLogValue, "Command: "+FormatCommand(CurrentOperation))
-		if !InstallerConfigurationValue.ApplyChanges {
+		if !InstallerConfigurationValue.InstallChanges {
 			continue
 		}
 		Command := exec.Command(CurrentOperation.ExecutablePath, CurrentOperation.Arguments...)
@@ -395,7 +395,7 @@ func FailOperation(OperationLogValue OperationLog, CheckResultsValue CheckResult
 	fmt.Fprintln(os.Stderr, TerminalColorRed+CheckSummary+TerminalColorReset)
 	fmt.Fprintln(os.Stderr, TerminalColorRed+"CHECK FAILED"+TerminalColorReset)
 	fmt.Fprintln(os.Stderr, TerminalColorRed+"The installation plan was not approved: "+OperationError.Error()+TerminalColorReset)
-	fmt.Fprintln(os.Stderr, TerminalColorRed+"Do not run --apply until this check is resolved."+TerminalColorReset)
+	fmt.Fprintln(os.Stderr, TerminalColorRed+"Do not run --install until this check is resolved."+TerminalColorReset)
 	fmt.Fprintln(os.Stderr, "Operation log:", OperationLogValue.LogPath)
 	os.Exit(1)
 }
