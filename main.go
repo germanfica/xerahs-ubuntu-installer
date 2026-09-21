@@ -27,6 +27,7 @@ type InstallerConfiguration struct {
 	OperationLogDirectoryPath string
 	InstallChanges            bool
 	UseDevelopInstallation    bool
+	UseReleasePackageInstallation bool
 	UpdateExistingSource      bool
 	BuildLinuxPackages        bool
 }
@@ -68,7 +69,7 @@ func main() {
 	} else {
 		LogMessage(OperationLogValue, "Mode: dry run; no commands will be executed")
 	}
-	PrintXerahSDevelopInstallationTarget(InstallerConfigurationValue)
+	PrintSelectedInstallationTarget(InstallerConfigurationValue)
 	CheckResultsValue := NewCheckResults(InstallerConfigurationValue)
 
 	if ValidationError := ValidateUbuntu2404Host(); ValidationError != nil {
@@ -85,21 +86,26 @@ func main() {
 		}
 		RecordPassedCheck(&CheckResultsValue)
 	}
-	if InstallationError := RunXerahSDevelopInstallation(InstallerConfigurationValue, OperationLogValue, &CheckResultsValue); InstallationError != nil {
+	if InstallationError := RunSelectedInstallation(InstallerConfigurationValue, OperationLogValue, &CheckResultsValue); InstallationError != nil {
 		FailOperation(OperationLogValue, CheckResultsValue, InstallationError)
 	}
 
 	LogMessage(OperationLogValue, "Completed successfully")
 	fmt.Println("Completed successfully. Operation log:", OperationLogValue.LogPath)
 	if !InstallerConfigurationValue.InstallChanges {
-		PrintXerahSDevelopDryRunValidationSuccess(InstallerConfigurationValue, CheckResultsValue)
+		PrintSelectedDryRunValidationSuccess(InstallerConfigurationValue, CheckResultsValue)
 	}
 }
 
 func NewCheckResults(InstallerConfigurationValue InstallerConfiguration) CheckResults {
 	TotalChecks := 2
 	if InstallerConfigurationValue.InstallChanges {
-		TotalChecks = TotalChecks + 3
+		TotalChecks++
+		if InstallerConfigurationValue.UseDevelopInstallation {
+			TotalChecks = TotalChecks + 2
+		} else {
+			TotalChecks++
+		}
 	}
 	return CheckResults{TotalChecks: TotalChecks}
 }
@@ -119,11 +125,18 @@ func ParseInstallerConfiguration() (InstallerConfiguration, error) {
 	OperationLogDirectoryPath := flag.String("log-directory", DefaultOperationLogDirectoryPath, "directory for operation logs")
 	InstallChanges := flag.Bool("install", false, "install prerequisites, clone XerahS, and build it; without this flag the program only prints the plan")
 	UseDevelopInstallation := flag.Bool("dev", false, "select the XerahS develop branch installation")
+	UseReleasePackageInstallation := flag.Bool("release", false, "select installation from the XerahS v0.25.5 Debian package")
 	UpdateExistingSource := flag.Bool("update-source", false, "fast-forward an existing clean clone to origin/develop")
 	BuildLinuxPackages := flag.Bool("build-packages", false, "build Linux packages under dist/ instead of only compiling the desktop solution")
 	flag.Parse()
-	if !*UseDevelopInstallation {
-		return InstallerConfiguration{}, fmt.Errorf("select an installation target with --dev")
+	if *UseDevelopInstallation && *UseReleasePackageInstallation {
+		return InstallerConfiguration{}, fmt.Errorf("select only one installation target: --dev or --release")
+	}
+	if !*UseDevelopInstallation && !*UseReleasePackageInstallation {
+		return InstallerConfiguration{}, fmt.Errorf("select an installation target with --dev or --release")
+	}
+	if *UseReleasePackageInstallation && (*UpdateExistingSource || *BuildLinuxPackages) {
+		return InstallerConfiguration{}, fmt.Errorf("--update-source and --build-packages require --dev")
 	}
 
 	AbsoluteDestinationRepositoryPath, DestinationPathError := filepath.Abs(*DestinationRepositoryPath)
@@ -139,6 +152,7 @@ func ParseInstallerConfiguration() (InstallerConfiguration, error) {
 		OperationLogDirectoryPath: AbsoluteOperationLogDirectoryPath,
 		InstallChanges:            *InstallChanges,
 		UseDevelopInstallation:    *UseDevelopInstallation,
+		UseReleasePackageInstallation: *UseReleasePackageInstallation,
 		UpdateExistingSource:      *UpdateExistingSource,
 		BuildLinuxPackages:        *BuildLinuxPackages,
 	}, nil
